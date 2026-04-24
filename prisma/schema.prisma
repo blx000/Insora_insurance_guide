@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ScenarioType {
+  NS
+  SIMPLE
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model AppConfig {
+  id           String   @id
+  quickActions Json
+  homeMetrics  Json
+  homeFlow     Json
+  chatIntro    Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Product {
+  id            String       @id @default(cuid())
+  sortOrder     Int
+  key           String       @unique
+  slug          String       @unique
+  title         String
+  badge         String
+  homeText      String
+  description   String
+  helpTitle     String
+  helpIntro     String
+  helpList      Json
+  helpOutro     String?
+  scenarioIntro String?
+  faqs          ProductFaq[]
+  scenarios     Scenario[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model ProductFaq {
+  id        String   @id @default(cuid())
+  productId String
+  question  String
+  answer    String
+  sortOrder Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+}
+
+model Scenario {
+  id           String         @id @default(cuid())
+  productId    String
+  sortOrder    Int
+  key          String
+  slug         String
+  title        String
+  subtitle     String
+  scenarioType ScenarioType
+  simpleStates Json?
+  product      Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  nsResults    NsResult[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([productId, slug])
+  @@index([productId])
+}
+
+model NsQuestion {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  options   Json
+  sortOrder Int
+}
+
+model NsPersonalization {
+  id        String @id @default(cuid())
+  groupKey  String
+  key       String
+  text      String
+
+  @@unique([groupKey, key])
+}
+
+model NsResult {
+  id         String   @id @default(cuid())
+  scenarioId String
+  status     String
+  injury     String
+  title      String
+  summary    String
+  risk       String
+  caseText   String
+  payout     String
+  example    String
+  note       String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([scenarioId, status, injury])
+}
+
+model Game {
+  id        String     @id @default(cuid())
+  sortOrder Int
+  key       String     @unique
+  slug      String     @unique
+  title     String
+  subtitle  String
+  steps     GameStep[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model GameStep {
+  id        String @id @default(cuid())
+  gameId    String
+  label     String
+  body      String?
+  sortOrder Int
+  meta      Json?
+  game      Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, sortOrder])
+}
+
+model Session {
+  id           String        @id
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  chatMessages ChatMessage[]
+  scenarioRuns ScenarioRun[]
+  gameRuns     GameRun[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  role      MessageRole
+  text      String
+  createdAt DateTime    @default(now())
+  session   Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model ScenarioRun {
+  id           String   @id @default(cuid())
+  sessionId    String
+  productSlug  String
+  scenarioSlug String
+  stateKey     String
+  answers      Json?
+  result       Json
+  nextSteps    Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  session      Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, updatedAt])
+}
+
+model GameRun {
+  id        String   @id @default(cuid())
+  sessionId String
+  gameSlug  String
+  state     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, gameSlug])
+}
